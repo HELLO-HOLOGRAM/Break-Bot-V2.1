@@ -1,8 +1,10 @@
 import asyncio
+import datetime
 import json
 import os.path
 import random
 
+import pytz
 import requests
 from nonebot import on_command, get_driver
 from nonebot.adapters.onebot.v11 import Bot, Event, GroupMessageEvent
@@ -13,6 +15,18 @@ from config import Config
 cfg = Config()
 
 driver = get_driver()
+
+
+def get_now(time):
+    time_obj = datetime.datetime.strptime(time, '%Y-%m-%dT%H:%M:%SZ')
+    # 将datetime对象的时区设置为UTC
+    time_obj_utc = time_obj.replace(tzinfo=pytz.UTC)
+    # 将时区从UTC转换为北京时间
+    bj_timezone = pytz.timezone('Asia/Shanghai')
+    time_obj_bj = time_obj_utc.astimezone(bj_timezone)
+    # 格式化输出北京时间
+    bj_time_str = time_obj_bj.strftime('%Y-%m-%d %H:%M:%S')
+    return bj_time_str
 
 
 @driver.on_bot_connect
@@ -47,7 +61,9 @@ async def _(bot: Bot):
                 if f.read() == '':
                     sha_list = []
                 else:
-                    sha_list: list = list(f.read())
+                    # 重置游标
+                    f.seek(0)
+                    sha_list: list = json.loads(f.read())
             for commit in commits:
                 sha = commit['sha']
                 if sha in sha_list:
@@ -61,13 +77,12 @@ async def _(bot: Bot):
                     commit_date = committer['date']
                     commit_msg = commit['commit']['message']
                     # 生成推送消息
-                    push_msg = (f'检测到{repo}仓库有新的Commit：\n'
-                                f'====================\n'
+                    push_msg = (f'检测到：\n{repo}\n有新的Commit!\n'
+                                f'======\n'
                                 f'{commit_msg}\n'
-                                f'\n'
                                 f'推送者：{commiter_name}\n'
-                                f'推送者邮箱：{commiter_email}\n'
-                                f'推送时间：{commit_date}')
+                                # f'推送者邮箱：{commiter_email}\n'
+                                f'推送时间：{get_now(commit_date)}')
                     # 遍历所有接受消息的群
                     for group in cfg.rec_group:
                         await bot.send_group_msg(group_id=group, message=push_msg)
@@ -79,5 +94,5 @@ async def _(bot: Bot):
                         f.close()
                     await asyncio.sleep(random.uniform(0.4, 1.5))
                     continue
-        # 使这个任务休眠，实现频率控制
+            # 使这个任务休眠，实现频率控制
         await asyncio.sleep(cfg.github_api_freq)
