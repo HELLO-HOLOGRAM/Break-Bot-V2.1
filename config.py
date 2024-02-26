@@ -13,8 +13,8 @@ class Config:
     # MongoDB Server默认值
     db_ip = '127.0.0.1'
     db_port = 27017
-    db_is_auth = False
-    db_username = 'breakbot'
+    db_is_auth = True
+    db_username = 'break-bot'
     db_passwd = ''
 
     # Bot通讯设置默认值
